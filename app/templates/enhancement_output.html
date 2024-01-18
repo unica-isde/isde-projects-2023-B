@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .large-front-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }
+
+    .image-container {
+        display: inline-block;
+         /* Spaziatura tra le immagini */
+        text-align: center; /* Allinea il testo al centro all'interno di image-container */
+    }
+
+    .large-front-thumbnail {
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 10px; /* Spazio tra l'immagine e la label */
+    }
+
+    .card {
+        margin-bottom: 20px; /* Aggiungi spaziatura tra le carte */
+    }
+
+    label {
+        display: block;
+        margin-bottom: 5px; /* Spazio tra label e immagine */
+    }
+</style>
+
+<div class="row">
+    <div class="col">
+        <div class = "card">
+            <div class="image-container text-center">
+            <label>Original Image</label>
+            <img class="large-front-thumbnail"
+                     src="{{ 'static/imagenet_subset/'+image_id }} "
+                     alt={{ image_id }}/>
+
+        </div>
+        </div>
+
+
+    </div>
+
+
+    <div class="col">
+        <div class = "card">
+        <div class="image-container text-center">
+            <label>Transformed Image</label>
+            <img class="large-front-thumbnail"
+                 src="{{ transformed_image_path }}"
+                 alt="Transformed {{ image_id }}" />
+        </div>
+        </div>
+
+    </div>
+</div>
+
+    <div class="row justify-content-center align-items-center">
+    <div class="col text-center">
+        <a class="btn btn-primary" href="/enhancement" role="button">Back</a>
+    </div>
+</div>
+
+{% endblock %}
