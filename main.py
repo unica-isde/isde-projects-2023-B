@@ -121,7 +121,7 @@ async def upload_file(file: UploadFile, request: Request):
         )
     except Exception as e:
         return {"error": f"Si è verificato un errore durante l'upload del file: {str(e)}"}
-=======
+        
 @app.get("/download_results", response_class=JSONResponse)
 def download_results(classification_scores):
     results = json.loads(classification_scores)
