@@ -1,6 +1,6 @@
 import json
 from typing import Dict, List
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -12,10 +12,7 @@ from app.forms.classification_form import ClassificationForm
 from app.ml.classification_utils import classify_image
 from app.utils import list_images
 
-# Imports for issue No.4
-
 from PIL import Image
-from fastapi import UploadFile
 import os
 
 # ----------------------
