@@ -1,7 +1,7 @@
 import json
 from typing import Dict, List
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import redis
@@ -11,7 +11,9 @@ from app.config import Configuration
 from app.forms.classification_form import ClassificationForm
 from app.ml.classification_utils import classify_image
 from app.utils import list_images
-
+from PIL import Image
+import matplotlib.pyplot as plt
+from io import BytesIO
 
 app = FastAPI()
 config = Configuration()
@@ -60,6 +62,7 @@ async def request_classification(request: Request):
         },
     )
 
+
 @app.get("/download_results", response_class=JSONResponse)
 def download_results(classification_scores):
     results = json.loads(classification_scores)
@@ -69,3 +72,32 @@ def download_results(classification_scores):
     return JSONResponse(content=results_dict,
                         media_type="application/json",
                         headers={"Content-Disposition": "attachment; filename=results.json"})
+
+
+
+@app.get("/download_plot", response_class=StreamingResponse)
+async def download_plot(classification_scores: str):
+    results = json.loads(classification_scores)
+    labels = [result[0] for result in results][::-1]
+    scores = [result[1] for result in results][::-1]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    colors = [
+        (63 / 255, 3 / 255, 85 / 255, 0.8),
+        (6 / 255, 33 / 255, 108 / 255, 0.8),
+        (121 / 255, 87 / 255, 3 / 255, 0.8),
+        (117 / 255, 0 / 255, 20 / 255, 0.8),
+        (26 / 255, 74 / 255, 4 / 255, 0.8)
+    ]
+    ax.barh(labels, scores, color=colors)
+    ax.set_xlabel('Scores')
+    ax.set_title('Top 5 Classification Scores')
+    ax.grid()
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format='png')
+    plt.close(fig)
+    img = Image.open(img_buffer)
+    img_byte = BytesIO()
+    img.save(img_byte, format='PNG')
+    img.close()
+    img_byte.seek(0)
+    return StreamingResponse(content=img_byte, media_type="image/png", headers={"Content-Disposition": "attachment; filename=plot.png"})
