@@ -1,7 +1,7 @@
 import json
 from typing import Dict, List
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import redis
@@ -59,3 +59,13 @@ async def request_classification(request: Request):
             "classification_scores": json.dumps(classification_scores),
         },
     )
+
+@app.get("/download_results", response_class=JSONResponse)
+def download_results(classification_scores):
+    results = json.loads(classification_scores)
+    labels = [result[0] for result in results][::-1]
+    scores = [result[1] for result in results][::-1]
+    results_dict = {labels[0]: scores[0], labels[1]: scores[1], labels[2]: scores[2], labels[3]: scores[3], labels[4]: scores[4]}
+    return JSONResponse(content=results_dict,
+                        media_type="application/json",
+                        headers={"Content-Disposition": "attachment; filename=results.json"})

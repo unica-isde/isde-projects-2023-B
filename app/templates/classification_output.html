@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <a class="btn btn-dark mr-1 mt-1 mb-1" style="width: 100%; padding: 5px;" href="/classifications" role="button">Back</a>
-                <a class="btn btn-dark mr-1 mt-1 mb-1" style="width: 49%; padding: 5px;" role="button" >Download results</a>
+                <a class="btn btn-dark mr-1 mt-1 mb-1" style="width: 49%; padding: 5px;" href="/download_results?classification_scores={{classification_scores}}" role="button" >Download results</a>
         </div>
     </div>
     <script src="{{ "static/graph.js" }}" id="makeGraph" classification_scores="{{classification_scores}}"></script>
