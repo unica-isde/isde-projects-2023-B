@@ -7,3 +7,5 @@ redis~=5.0.1
 rq~=1.15.1
 python-multipart
 matplotlib~=3.8.2
+opencv-python~=4.8.1.78
+numpy~=1.26.1
