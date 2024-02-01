@@ -18,7 +18,6 @@ import cv2
 import numpy as np
 import os 
 
-
 app = FastAPI()
 config = Configuration()
 
@@ -66,8 +65,6 @@ async def request_classification(request: Request):
         },
     )
 
-
-# Issue No.4 Upload an image--------------------------------------------------------------------
 
 
 @app.get("/custom_classifications")
