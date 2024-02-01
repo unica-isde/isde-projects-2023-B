@@ -8,10 +8,14 @@ from app.config import Configuration
 from app.forms.classification_form import ClassificationForm
 from app.forms.enhancement_form import EnhancementForm
 from app.ml.classification_utils import classify_image
-from app.utils import list_images
 from PIL import ImageEnhance, Image
 import base64
 from io import BytesIO
+from app.forms.histogram_form import HistogramForm
+from app.utils import list_images
+import cv2
+import numpy as np
+
 
 app = FastAPI()
 config = Configuration()
@@ -61,6 +65,7 @@ async def request_classification(request: Request):
     )
 
 
+#Implementation Issue 2
 @app.get("/enhancement")
 def create_transformed_image(request: Request):
     return templates.TemplateResponse(
@@ -123,5 +128,36 @@ def apply_image_transformation(image_id, params):
 
 
 
+
+# Implementation for Issue 1
+@app.get("/image_histogram")
+def create_histogram(request: Request):
+    return templates.TemplateResponse(
+        "histogram_select.html",
+        {"request": request, "images": list_images()},
+    )
+
+
+@app.post("/image_histogram")
+async def request_classification(request: Request):
+    form = HistogramForm(request)
+    await form.load_data()
+    image_id = form.image_id
+
+    # read image
+    im = cv2.imread('app/static/imagenet_subset/'+image_id)
+    # calculate mean value from RGB channels and flatten to 1D array
+    vals = im.mean(axis=2).flatten()
+    # calculate histogram
+    histogram, bins = np.histogram(vals, range(257))
+
+    return templates.TemplateResponse(
+        "histogram_output.html",
+        {
+            "request": request,
+            "image_id": image_id,
+            "histogram": json.dumps(histogram.tolist()),
+        },
+    )
 
 
