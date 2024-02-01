@@ -1,7 +1,7 @@
 import json
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from typing import Dict, List, Annotated
 from fastapi import FastAPI, Request, HTTPException, Form
-from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.config import Configuration
@@ -13,6 +13,7 @@ import base64
 from io import BytesIO
 from app.forms.histogram_form import HistogramForm
 from app.utils import list_images
+import matplotlib.pyplot as plt
 import cv2
 import numpy as np
 
@@ -65,6 +66,46 @@ async def request_classification(request: Request):
     )
 
 
+@app.get("/download_results", response_class=JSONResponse)
+def download_results(classification_scores):
+    results = json.loads(classification_scores)
+    labels = [result[0] for result in results][::-1]
+    scores = [result[1] for result in results][::-1]
+    results_dict = {labels[0]: scores[0], labels[1]: scores[1], labels[2]: scores[2], labels[3]: scores[3], labels[4]: scores[4]}
+    return JSONResponse(content=results_dict,
+                        media_type="application/json",
+                        headers={"Content-Disposition": "attachment; filename=results.json"})
+
+
+#Implementation Issue 3
+@app.get("/download_plot", response_class=StreamingResponse)
+async def download_plot(classification_scores: str):
+    results = json.loads(classification_scores)
+    labels = [result[0] for result in results][::-1]
+    scores = [result[1] for result in results][::-1]
+    fig, ax = plt.subplots(figsize=(10, 6))
+    colors = [
+        (63 / 255, 3 / 255, 85 / 255, 0.8),
+        (6 / 255, 33 / 255, 108 / 255, 0.8),
+        (121 / 255, 87 / 255, 3 / 255, 0.8),
+        (117 / 255, 0 / 255, 20 / 255, 0.8),
+        (26 / 255, 74 / 255, 4 / 255, 0.8)
+    ]
+    ax.barh(labels, scores, color=colors)
+    ax.set_xlabel('Scores')
+    ax.set_title('Top 5 Classification Scores')
+    ax.grid()
+    img_buffer = BytesIO()
+    plt.savefig(img_buffer, format='png')
+    plt.close(fig)
+    img = Image.open(img_buffer)
+    img_byte = BytesIO()
+    img.save(img_byte, format='PNG')
+    img.close()
+    img_byte.seek(0)
+    return StreamingResponse(content=img_byte, media_type="image/png", headers={"Content-Disposition": "attachment; filename=plot.png"})
+
+  
 #Implementation Issue 2
 @app.get("/enhancement")
 def create_transformed_image(request: Request):
@@ -159,5 +200,3 @@ async def request_classification(request: Request):
             "histogram": json.dumps(histogram.tolist()),
         },
     )
-
-
