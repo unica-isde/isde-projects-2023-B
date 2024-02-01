@@ -1,19 +1,21 @@
 import json
-from typing import Dict, List
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from typing import Dict, List, Annotated
+from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import redis
-from rq import Connection, Queue
-from rq.job import Job
 from app.config import Configuration
 from app.forms.classification_form import ClassificationForm
-from app.forms.histogram_form import HistogramForm
+from app.forms.enhancement_form import EnhancementForm
 from app.ml.classification_utils import classify_image
+from PIL import ImageEnhance, Image
+import base64
+from io import BytesIO
+from app.forms.histogram_form import HistogramForm
 from app.utils import list_images
 import cv2
 import numpy as np
+
 
 app = FastAPI()
 config = Configuration()
@@ -63,6 +65,70 @@ async def request_classification(request: Request):
     )
 
 
+#Implementation Issue 2
+@app.get("/enhancement")
+def create_transformed_image(request: Request):
+    return templates.TemplateResponse(
+        "enhancement_select.html",
+        {"request": request, "images": list_images(), "models": Configuration.models},
+    )
+
+
+@app.post("/enhancement")
+async def apply_transformation(request: Request):
+    form = EnhancementForm(request)
+    await form.load_data()
+
+    image_id = form.image_id
+    transformation_params = {
+        "color": form.color,
+        "brightness": form.brightness,
+        "contrast": form.contrast,
+        "sharpness": form.sharpness,
+    }
+
+    transformed_image_path = apply_image_transformation(image_id, transformation_params)
+
+    return templates.TemplateResponse("enhancement_output.html",
+                                      {"request": request,
+                                       "color": form.color,
+                                       "brightness": form.brightness,
+                                       "contrast": form.contrast,
+                                       "sharpness": form.sharpness,
+                                       "image_id": image_id,
+                                       "transformed_image_path": transformed_image_path
+                                       })
+def apply_image_transformation(image_id, params):
+    try:
+        image_path = f"app/static/imagenet_subset/{image_id}"
+        img = Image.open(image_path)
+
+        enhancer = ImageEnhance.Color(img)
+        img = enhancer.enhance(params["color"])
+        enhancer = ImageEnhance.Brightness(img)
+        img = enhancer.enhance(params["brightness"])
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(params["contrast"])
+        enhancer = ImageEnhance.Sharpness(img)
+        img = enhancer.enhance(params["sharpness"])
+
+
+        buffer = BytesIO()
+        img.save(buffer, format="PNG")
+
+        image_64= base64.b64encode(buffer.getvalue()).decode("utf-8")
+        data_url = f"data:image/png;base64,{image_64}"
+
+        return data_url
+
+    except Exception as e:
+        error_message = f"Error during image transformation: {str(e)}"
+        print(error_message)
+        raise HTTPException(status_code=500, detail=error_message)
+
+
+
+
 # Implementation for Issue 1
 @app.get("/image_histogram")
 def create_histogram(request: Request):
@@ -93,4 +159,5 @@ async def request_classification(request: Request):
             "histogram": json.dumps(histogram.tolist()),
         },
     )
+
 
