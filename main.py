@@ -16,8 +16,6 @@ from app.utils import list_images
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-from fastapi import UploadFile
-import os
 
 
 app = FastAPI()
