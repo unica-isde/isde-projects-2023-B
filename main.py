@@ -1,7 +1,7 @@
 import json
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from typing import Dict, List, Annotated
-from fastapi import FastAPI, Request, HTTPException, Form
+from fastapi import FastAPI, Request, HTTPException, Form, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from app.config import Configuration
@@ -16,6 +16,7 @@ from app.utils import list_images
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
+import os 
 
 
 app = FastAPI()
