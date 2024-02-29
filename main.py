@@ -68,9 +68,20 @@ async def request_classification(request: Request):
     )
 
 
+# Issue No.4 Upload Image Button -------------------------------------------------------------------
 
 @app.get("/custom_classifications")
 def create_classify(request: Request):
+    """
+    Create the page for custom image classification.
+
+    Args:
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page for custom image classification.
+    """
+
     return templates.TemplateResponse(
         "custom_classification_select.html",
         {"request": request, "models": Configuration.models},
@@ -79,24 +90,35 @@ def create_classify(request: Request):
 
 @app.post("/custom_classifications")
 async def upload_file(file: UploadFile, request: Request):
+    """
+    Uploads a file (an image) and classifies it.
+
+    Args:
+        file: UploadFile: The uploaded file.
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page with the classification results.
+    """
+
     try:
-        # Legge il contenuto del file
+        # Read the content of the file
         file_content = await file.read()
 
-        # Salva temporaneamente file nel server nella cartella "static" --> imagenet_subset
+        # Temporarily save the file on the server in the "static" folder --> imagenet_subset
         original_path = f"app/static/imagenet_subset/{file.filename}"
         with open(original_path, "wb") as f:
             f.write(file_content)
         image_id = file.filename
 
-        # Controlla se il file inserito è effettivamente un immagine
+        # Check if the uploaded file is actually an image
         mime = magic.Magic(mime=True)
         file_type = mime.from_file(original_path)
         if not file_type.startswith("image"):
             os.remove(original_path)
             raise ValueError("Uploaded file is not an image")
 
-        # Salva il file temporaneamente in un buffer
+        # Save temporarily the file in a buffer
         buffer = BytesIO()
         img = Image.open(original_path)
         img.save(buffer, format="PNG")
@@ -109,10 +131,9 @@ async def upload_file(file: UploadFile, request: Request):
         model_id = form.model_id
         classification_scores = classify_image(model_id=model_id, img_id=image_id)
 
-        # Rimuove il file da static
+        # Remove the file from the "static" folder
         os.remove(original_path)
 
-        # Invia il file dal buffer
         return templates.TemplateResponse(
             "custom_classification_output.html",
             {
@@ -124,23 +145,58 @@ async def upload_file(file: UploadFile, request: Request):
     except Exception as e:
         return {"error": f"An error occurred during the file upload: {str(e)}"}
 
+
+# Issue No.3 Download Results Button -------------------------------------------------------------------
+
 @app.get("/download_results", response_class=JSONResponse)
 def download_results(classification_scores):
+    """
+    Download the classification scores as a JSON file.
+
+    Args:
+        classification_scores: str: The classification scores as a JSON string.
+
+    Returns:
+        JSONResponse: The classification scores as a JSON file.
+    """
+
+    # Extract the labels and scores from the JSON string
     results = json.loads(classification_scores)
     labels = [result[0] for result in results][::-1]
     scores = [result[1] for result in results][::-1]
-    results_dict = {labels[0]: scores[0], labels[1]: scores[1], labels[2]: scores[2], labels[3]: scores[3], labels[4]: scores[4]}
-    return JSONResponse(content=results_dict,
-                        media_type="application/json",
-                        headers={"Content-Disposition": "attachment; filename=results.json"})
+
+    # Create a dictionary with the classification scores
+    results_dict = {labels[0]: scores[0],
+                    labels[1]: scores[1],
+                    labels[2]: scores[2],
+                    labels[3]: scores[3],
+                    labels[4]: scores[4]}
+
+    return JSONResponse(
+        content=results_dict,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=results.json"}
+    )
 
 
-#Implementation Issue 3
 @app.get("/download_plot", response_class=StreamingResponse)
 async def download_plot(classification_scores: str):
+    """
+    Download the classification scores as a graph image.
+
+    Args:
+        classification_scores: str: The classification scores as a JSON string.
+
+    Returns:
+        StreamingResponse: The classification scores as a bar plot.
+    """
+
+    # Extract the labels and scores from the JSON string
     results = json.loads(classification_scores)
     labels = [result[0] for result in results][::-1]
     scores = [result[1] for result in results][::-1]
+
+    # Create the bar plot
     fig, ax = plt.subplots(figsize=(10, 6))
     colors = [
         (63 / 255, 3 / 255, 85 / 255, 0.8),
@@ -153,20 +209,40 @@ async def download_plot(classification_scores: str):
     ax.set_xlabel('Scores')
     ax.set_title('Top 5 Classification Scores')
     ax.grid()
+
+    # Save the plot in a buffer
     img_buffer = BytesIO()
     plt.savefig(img_buffer, format='png')
     plt.close(fig)
+
+    # Take the plot from the buffer
     img = Image.open(img_buffer)
     img_byte = BytesIO()
     img.save(img_byte, format='PNG')
     img.close()
     img_byte.seek(0)
-    return StreamingResponse(content=img_byte, media_type="image/png", headers={"Content-Disposition": "attachment; filename=plot.png"})
+
+    return StreamingResponse(
+        content=img_byte,
+        media_type="image/png",
+        headers={"Content-Disposition": "attachment; filename=plot.png"}
+    )
 
   
-#Implementation Issue 2
+# Issue No.2 Image Transformation -------------------------------------------------------------------
+
 @app.get("/enhancement")
 def create_transformed_image(request: Request):
+    """
+    Create the page for image enhancement.
+
+    Args:
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page for image enhancement.
+    """
+
     return templates.TemplateResponse(
         "enhancement_select.html",
         {"request": request, "images": list_images(), "models": Configuration.models},
@@ -175,9 +251,21 @@ def create_transformed_image(request: Request):
 
 @app.post("/enhancement")
 async def apply_transformation(request: Request):
+    """
+    Create the page with the transformed image.
+
+    Args:
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page with the transformed image.
+    """
+
+    # Load the form data
     form = EnhancementForm(request)
     await form.load_data()
 
+    # Apply the image transformation by calling the function apply_image_transformation
     image_id = form.image_id
     transformation_params = {
         "color": form.color,
@@ -185,19 +273,33 @@ async def apply_transformation(request: Request):
         "contrast": form.contrast,
         "sharpness": form.sharpness,
     }
-
     transformed_image_path = apply_image_transformation(image_id, transformation_params)
 
-    return templates.TemplateResponse("enhancement_output.html",
-                                      {"request": request,
-                                       "color": form.color,
-                                       "brightness": form.brightness,
-                                       "contrast": form.contrast,
-                                       "sharpness": form.sharpness,
-                                       "image_id": image_id,
-                                       "transformed_image_path": transformed_image_path
-                                       })
+    return templates.TemplateResponse(
+        "enhancement_output.html",
+        {"request": request,
+         "color": form.color,
+         "brightness": form.brightness,
+         "contrast": form.contrast,
+         "sharpness": form.sharpness,
+         "image_id": image_id,
+         "transformed_image_path": transformed_image_path
+         }
+    )
+
+
 def apply_image_transformation(image_id, params):
+    """
+    The function that applies the image transformation.
+
+    Args:
+        image_id: str: The image ID.
+        params: dict: The transformation parameters.
+
+    Returns:
+        str: The path of the transformed image.
+    """
+
     try:
         image_path = f"app/static/imagenet_subset/{image_id}"
         img = Image.open(image_path)
@@ -211,10 +313,8 @@ def apply_image_transformation(image_id, params):
         enhancer = ImageEnhance.Sharpness(img)
         img = enhancer.enhance(params["sharpness"])
 
-
         buffer = BytesIO()
         img.save(buffer, format="PNG")
-
         image_64= base64.b64encode(buffer.getvalue()).decode("utf-8")
         data_url = f"data:image/png;base64,{image_64}"
 
@@ -226,11 +326,20 @@ def apply_image_transformation(image_id, params):
         raise HTTPException(status_code=500, detail=error_message)
 
 
+# Issue No.1 Image Histogram -------------------------------------------------------------------
 
-
-# Implementation for Issue 1
 @app.get("/image_histogram")
 def create_histogram(request: Request):
+    """
+    Create the page for image histogram.
+
+    Args:
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page for image histogram.
+    """
+
     return templates.TemplateResponse(
         "histogram_select.html",
         {"request": request, "images": list_images()},
@@ -239,15 +348,27 @@ def create_histogram(request: Request):
 
 @app.post("/image_histogram")
 async def request_classification(request: Request):
+    """
+    Calculate the histogram of the selected image.
+
+    Args:
+        request: Request: The request object.
+
+    Returns:
+        TemplateResponse: The page with the histogram of the selected image.
+    """
+
     form = HistogramForm(request)
     await form.load_data()
     image_id = form.image_id
 
-    # read image
+    # Read image
     im = cv2.imread('app/static/imagenet_subset/'+image_id)
-    # calculate mean value from RGB channels and flatten to 1D array
+
+    # Calculate mean value from RGB channels and flatten to 1D array
     vals = im.mean(axis=2).flatten()
-    # calculate histogram
+
+    # Calculate histogram
     histogram, bins = np.histogram(vals, range(257))
 
     return templates.TemplateResponse(
