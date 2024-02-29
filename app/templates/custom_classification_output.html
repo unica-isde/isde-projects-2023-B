@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+    <style>
+        .large-front-thumbnail {
+            position: relative;
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+    </style>
+    <div class="row">
+        <div class="col">
+            <div class="card">
+                <img class="large-front-thumbnail"
+                     src="{{ image_id }} "
+                     alt={{ image_id }}/>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card">
+                <div class="row">
+                    <canvas id="classificationOutput" style="width: 50%; margin: auto; padding: 20px;"></canvas>
+                    <div class="align-items-center">
+                        <h2 id="waitText"></h2>
+                        </div>
+                    </div>
+                </div>
+            <div class="card btn mt-3" style="border: None">
+                <a class="btn btn-dark mt-1 mb-1" style="width: 100%; padding: 5px;" href="/custom_classifications" role="button">Back</a>
+                <div>
+                    <a class="btn btn-dark mr-1 mt-1 mb-1" style="width: 49%; padding: 5px;" href="/download_results?classification_scores={{classification_scores}}" role="button" >Download results</a>
+                    <a class="btn btn-dark mt-1 mb-1" style="width: 49%; padding: 5px;" href="/download_plot?classification_scores={{classification_scores}}" role="button">Download plot</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ "static/graph.js" }}" id="makeGraph" classification_scores="{{classification_scores}}"></script>
+{% endblock %}
+
