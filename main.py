@@ -16,7 +16,9 @@ from app.utils import list_images
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import os 
+import os
+import magic
+
 
 app = FastAPI()
 config = Configuration()
@@ -81,43 +83,47 @@ async def upload_file(file: UploadFile, request: Request):
         # Legge il contenuto del file
         file_content = await file.read()
 
-        # Salva il file nel server nella cartella "uploads" --> imagenet_subset
+        # Salva temporaneamente file nel server nella cartella "static" --> imagenet_subset
         original_path = f"app/static/imagenet_subset/{file.filename}"
         with open(original_path, "wb") as f:
             f.write(file_content)
+        image_id = file.filename
 
-        # Controlla il formato dell'immagine e converte se necessario
-        if not file.filename.upper().endswith('.JPEG'):
-            file_name_without_extension = file.filename.rsplit('.', 1)[0]
-            converted_path = f"app/static/imagenet_subset/{file_name_without_extension}.JPEG"
+        # Controlla se il file inserito è effettivamente un immagine
+        mime = magic.Magic(mime=True)
+        file_type = mime.from_file(original_path)
+        if not file_type.startswith("image"):
+            os.remove(original_path)
+            raise ValueError("Uploaded file is not an image")
 
-            with Image.open(original_path) as img:
-                img.convert("RGB").save(converted_path, "JPEG")
+        # Salva il file temporaneamente in un buffer
+        buffer = BytesIO()
+        img = Image.open(original_path)
+        img.save(buffer, format="PNG")
 
-            os.remove(original_path)  # Rimuove la vecchia copia
-
-            # Aggiorna il nome del file con l'estensione .JPEG
-            image_id = f"{file_name_without_extension}.JPEG"
-        else:
-            # Se il file è già in formato .JPEG, usa il nome originario
-            image_id = file.filename
+        image_64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        data_url = f"data:image/png;base64,{image_64}"
 
         form = ClassificationForm(request)
         await form.load_data()
         model_id = form.model_id
         classification_scores = classify_image(model_id=model_id, img_id=image_id)
 
+        # Rimuove il file da static
+        os.remove(original_path)
+
+        # Invia il file dal buffer
         return templates.TemplateResponse(
-            "classification_output.html",
+            "custom_classification_output.html",
             {
                 "request": request,
-                "image_id": image_id,
+                "image_id": data_url,
                 "classification_scores": json.dumps(classification_scores),
             },
         )
     except Exception as e:
-        return {"error": f"Si è verificato un errore durante l'upload del file: {str(e)}"}
-        
+        return {"error": f"An error occurred during the file upload: {str(e)}"}
+
 @app.get("/download_results", response_class=JSONResponse)
 def download_results(classification_scores):
     results = json.loads(classification_scores)
