@@ -16,7 +16,6 @@ from app.utils import list_images
 import matplotlib.pyplot as plt
 import cv2
 import numpy as np
-import os
 import magic
 
 
@@ -102,38 +101,35 @@ async def upload_file(file: UploadFile, request: Request):
     """
 
     try:
-        # Read the content of the file
+        # Legge il contenuto del file
         file_content = await file.read()
 
-        # Temporarily save the file on the server in the "static" folder --> imagenet_subset
-        original_path = f"app/static/imagenet_subset/{file.filename}"
-        with open(original_path, "wb") as f:
-            f.write(file_content)
-        image_id = file.filename
-
-        # Check if the uploaded file is actually an image
+        # Ottiene il tipo MIME del file
         mime = magic.Magic(mime=True)
-        file_type = mime.from_file(original_path)
+        file_type = mime.from_buffer(file_content)
+
+        # Verifica se il file è un'immagine
         if not file_type.startswith("image"):
-            os.remove(original_path)
             raise ValueError("Uploaded file is not an image")
 
-        # Save temporarily the file in a buffer
-        buffer = BytesIO()
-        img = Image.open(original_path)
-        img.save(buffer, format="PNG")
+        # Salva il file temporaneamente in un buffer
+        buffer = BytesIO(file_content)
+        img = Image.open(buffer)
 
-        image_64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+        # Converte l'immagine in PNG e la memorizza in un buffer
+        png_buffer = BytesIO()
+        img.save(png_buffer, format="PNG")
+
+        image_64 = base64.b64encode(png_buffer.getvalue()).decode("utf-8")
         data_url = f"data:image/png;base64,{image_64}"
 
+        # Classifica l'immagine
         form = ClassificationForm(request)
         await form.load_data()
         model_id = form.model_id
-        classification_scores = classify_image(model_id=model_id, img_id=image_id)
+        classification_scores = classify_image(model_id=model_id, img_id=None, custom_img_id=img)
 
-        # Remove the file from the "static" folder
-        os.remove(original_path)
-
+        # Invia il file dal buffer
         return templates.TemplateResponse(
             "custom_classification_output.html",
             {
